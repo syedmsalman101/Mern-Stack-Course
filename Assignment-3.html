@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>News & GitHub Finder</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0; padding: 0;
+      background: #f8f9fa;
+      color: #333;
+    }
+    header {
+      background: #222;
+      color: #fff;
+      padding: 1rem;
+      text-align: center;
+    }
+    nav {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin: 1rem;
+    }
+    nav button {
+      padding: 0.5rem 1rem;
+      border: none;
+      cursor: pointer;
+      background: #ddd;
+      border-radius: 5px;
+    }
+    nav button.active {
+      background: #007BFF;
+      color: white;
+    }
+    section { display: none; padding: 1rem; }
+    section.active { display: block; }
+    input {
+      padding: 0.5rem;
+      width: 250px;
+      margin-right: 0.5rem;
+    }
+    ul { list-style: none; padding: 0; }
+    li {
+      background: #fff;
+      margin: 0.5rem 0;
+      padding: 0.75rem;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    li a { text-decoration: none; color: #007BFF; }
+    .profile {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    .profile img {
+      width: 60px; border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>News App & GitHub Finder</h1>
+  </header>
+
+  <nav>
+    <button id="newsTab" class="active">News</button>
+    <button id="githubTab">GitHub Finder</button>
+  </nav>
+
+  <!-- News App -->
+  <section id="newsSection" class="active">
+    <h2>News App</h2>
+    <input type="text" id="newsQuery" placeholder="Search news...">
+    <button onclick="fetchNews()">Search</button>
+    <ul id="newsList"></ul>
+  </section>
+
+  <!-- GitHub Finder -->
+  <section id="githubSection">
+    <h2>GitHub Finder</h2>
+    <input type="text" id="githubQuery" placeholder="Search GitHub users...">
+    <button onclick="searchUsers()">Search</button>
+    <ul id="usersList"></ul>
+    <div id="userProfile"></div>
+  </section>
+
+  <script>
+ 
+    const newsTab = document.getElementById("newsTab");
+    const githubTab = document.getElementById("githubTab");
+    const newsSection = document.getElementById("newsSection");
+    const githubSection = document.getElementById("githubSection");
+
+    newsTab.onclick = () => {
+      newsTab.classList.add("active");
+      githubTab.classList.remove("active");
+      newsSection.classList.add("active");
+      githubSection.classList.remove("active");
+    };
+    githubTab.onclick = () => {
+      githubTab.classList.add("active");
+      newsTab.classList.remove("active");
+      githubSection.classList.add("active");
+      newsSection.classList.remove("active");
+    };
+
+    
+    async function fetchNews() {
+      const query = document.getElementById("newsQuery").value || "javascript";
+      const list = document.getElementById("newsList");
+      list.innerHTML = "<li>Loading...</li>";
+      try {
+        const res = await fetch(`https://hn.algolia.com/api/v1/search?query=${query}&tags=story`);
+        const data = await res.json();
+        list.innerHTML = "";
+        data.hits.forEach(item => {
+          const li = document.createElement("li");
+          li.innerHTML = `<a href=\"${item.url}\" target=\"_blank\">${item.title}</a>
+                          <br><small>By ${item.author} | ${item.points} points | ${item.num_comments} comments</small>`;
+          list.appendChild(li);
+        });
+      } catch (e) {
+        list.innerHTML = "<li>Error fetching news.</li>";
+      }
+    }
+
+   
+    async function searchUsers() {
+      const query = document.getElementById("githubQuery").value;
+      const list = document.getElementById("usersList");
+      const profile = document.getElementById("userProfile");
+      list.innerHTML = "<li>Loading...</li>";
+      profile.innerHTML = "";
+      try {
+        const res = await fetch(`https://api.github.com/search/users?q=${query}&per_page=5`);
+        const data = await res.json();
+        list.innerHTML = "";
+        data.items.forEach(user => {
+          const li = document.createElement("li");
+          li.innerHTML = `<a href=\"#\" onclick=\"loadUser('${user.login}')\">${user.login}</a>`;
+          list.appendChild(li);
+        });
+      } catch (e) {
+        list.innerHTML = "<li>Error searching users.</li>";
+      }
+    }
+
+    async function loadUser(username) {
+      const profile = document.getElementById("userProfile");
+      profile.innerHTML = "Loading profile...";
+      try {
+        const [userRes, repoRes] = await Promise.all([
+          fetch(`https://api.github.com/users/${username}`),
+          fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=5`)
+        ]);
+        const user = await userRes.json();
+        const repos = await repoRes.json();
+
+        profile.innerHTML = `
+          <div class=\"profile\">
+            <img src=\"${user.avatar_url}\" alt=\"${user.login}\">
+            <div>
+              <strong>${user.name || user.login}</strong><br>
+              @${user.login}<br>
+              Followers: ${user.followers} | Following: ${user.following}
+            </div>
+          </div>
+          <h3>Repositories</h3>
+          <ul>${repos.map(r => `<li><a href=\"${r.html_url}\" target=\"_blank\">${r.name}</a></li>`).join('')}</ul>
+        `;
+      } catch (e) {
+        profile.innerHTML = "Error loading profile.";
+      }
+    }
+  </script>
+</body>
+</html>
